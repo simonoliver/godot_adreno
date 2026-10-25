@@ -30,6 +30,7 @@ android_files = [
     "display_server_android.cpp",
     "plugin/godot_plugin_jni.cpp",
     "rendering_context_driver_vulkan_android.cpp",
+    "vulkan_custom_driver_android.cpp",
     "variant/callable_jni.cpp",
     "dialog_utils_jni.cpp",
     "editor/game_menu_utils_jni.cpp",
@@ -37,6 +38,14 @@ android_files = [
 ]
 
 env_android = env.Clone()
+
+# adrenotools: loads a custom Vulkan driver (e.g. Mesa Turnip) on Qualcomm Adreno GPUs
+# (vulkan_custom_driver_android.cpp). Its hooks are separate libraries packaged next to libgodot_android.so.
+use_adrenotools = env["adrenotools"] and env["arch"] == "arm64" and env["vulkan"]
+adrenotools_dir = "#thirdparty/adrenotools/"
+if use_adrenotools:
+    env_android.Append(CPPDEFINES=["ADRENOTOOLS_ENABLED"])
+    env_android.Prepend(CPPPATH=[adrenotools_dir + "include"])
 
 android_objects = []
 for x in android_files:
@@ -46,6 +55,43 @@ env_thirdparty = env_android.Clone()
 env_thirdparty.disable_warnings()
 thirdparty_obj = env_thirdparty.SharedObject("#thirdparty/misc/ifaddrs-android.cc")
 android_objects.append(thirdparty_obj)
+
+adrenotools_hooks = []
+if use_adrenotools:
+    adrenotools_includes = [adrenotools_dir + "include", adrenotools_dir + "lib/linkernsbypass", adrenotools_dir + "src"]
+    env_adrenotools = env_thirdparty.Clone()
+    env_adrenotools.Prepend(CPPPATH=adrenotools_includes)
+    linkernsbypass_sources = [
+        adrenotools_dir + "lib/linkernsbypass/android_linker_ns.cpp",
+        adrenotools_dir + "lib/linkernsbypass/elf_soname_patcher.cpp",
+    ]
+    for source in [adrenotools_dir + "src/driver.cpp"] + linkernsbypass_sources:
+        android_objects.append(env_adrenotools.SharedObject(source))
+
+    # Hook libraries: own sonames (not libgodot_android.so's), static libc++ (they load in a separate linker
+    # namespace), global symbol binding for the hooks themselves (upstream: -z global).
+    env_hook = env_adrenotools.Clone()
+    env_hook["LINKFLAGS"] = [f for f in env_hook["LINKFLAGS"] if not str(f).startswith("-Wl,-soname")]
+    env_hook["LIBS"] = ["log", "android", "dl"]
+    env_hook["SHLIBSUFFIX"] = ".so"
+    env_hook.Append(LINKFLAGS=["-static-libstdc++"])
+    hook_objects = [
+        env_hook.SharedObject("#bin/adrenotools_hook/" + f.split("/")[-1].replace(".cpp", ""), f)
+        for f in [adrenotools_dir + "src/hook/hook_impl.cpp"] + linkernsbypass_sources
+    ]
+    hook_impl = env_hook.SharedLibrary(
+        "#bin/adrenotools_hook/libhook_impl", hook_objects, LINKFLAGS=env_hook["LINKFLAGS"] + ["-Wl,-soname,libhook_impl.so"]
+    )
+    adrenotools_hooks.append(hook_impl)
+    for hook in ["main_hook", "file_redirect_hook", "gsl_alloc_hook"]:
+        adrenotools_hooks.append(
+            env_hook.SharedLibrary(
+                "#bin/adrenotools_hook/lib" + hook,
+                [adrenotools_dir + "src/hook/" + hook + ".c", hook_impl[0]],
+                LINKFLAGS=env_hook["LINKFLAGS"] + ["-Wl,-z,global", "-Wl,-soname,lib" + hook + ".so"],
+            )
+        )
+        env_hook.Depends(adrenotools_hooks[-1], hook_impl)
 
 # FIXME: Hardcoded to bin to ensure the directory exists if not redirecting build objects.
 lib = env_android.add_shared_library("#bin/libgodot", android_objects, redirect_build_objects=False)
@@ -101,6 +147,8 @@ if lib_arch_dir != "" and host_subpath != "":
 
     stl_lib_path = f"{env['ANDROID_NDK_ROOT']}/toolchains/llvm/prebuilt/{host_subpath}/sysroot/usr/lib/{triple_target_dir}/libc++_shared.so"
     env_android.CommandNoCache(out_dir + "/libc++_shared.so", stl_lib_path, Copy("$TARGET", "$SOURCE"))
+    for hook_lib in adrenotools_hooks:
+        env_android.CommandNoCache(out_dir + "/" + hook_lib[0].name, hook_lib, Copy("$TARGET", "$SOURCE"))
 
     if env["debug_symbols"] and env["separate_debug_symbols"]:
         debug_symbols_zip_file = (

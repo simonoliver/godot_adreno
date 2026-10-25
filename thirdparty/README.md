@@ -17,6 +17,25 @@ Files extracted from upstream source:
 - `LICENSE-MIT`
 
 
+## adrenotools
+
+- Upstream: https://github.com/bylaws/libadrenotools
+- Version: git (8fae8ce254dfc1344527e05301e43f37dea2df80, 2025);
+  linkernsbypass submodule (aa3975893d83ef1bc84c321ec60c65fbf1287887)
+- License: BSD-2-Clause
+
+Files extracted from upstream source:
+
+- `include/adrenotools/{driver,priv}.h`
+- `src/driver.cpp`
+- `src/hook/*` (built as separate shared libraries: `libhook_impl.so`, `libmain_hook.so`,
+  `libfile_redirect_hook.so`, `libgsl_alloc_hook.so`)
+- `lib/linkernsbypass/{android_linker_ns,elf_soname_patcher}.{cpp,h}` and its `LICENSE`
+- `LICENSE`
+
+`bcenabler` (BCn texture patching for old Qualcomm drivers) is not included.
+
+
 ## amd-fsr
 
 - Upstream: https://github.com/GPUOpen-Effects/FidelityFX-FSR

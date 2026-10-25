@@ -40,6 +40,11 @@ def get_opts():
             False,
         ),
         BoolVariable("swappy", "Use Swappy Frame Pacing library", False),
+        BoolVariable(
+            "adrenotools",
+            "Allow loading a custom Vulkan driver on Qualcomm Adreno GPUs through adrenotools (arm64 only)",
+            True,
+        ),
     ]
 
 

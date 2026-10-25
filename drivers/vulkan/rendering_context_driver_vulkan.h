@@ -127,6 +127,11 @@ protected:
 	virtual const char *_get_platform_surface_extension() const { return nullptr; }
 	virtual bool _use_validation_layers() const;
 	virtual Error _create_vulkan_instance(const VkInstanceCreateInfo *p_create_info, VkInstance *r_instance);
+#ifdef USE_VOLK
+	// Can be overridden to load Vulkan from a driver other than the system loader's (Android: adrenotools).
+	// nullptr = the system Vulkan loader.
+	virtual PFN_vkGetInstanceProcAddr _get_custom_instance_proc_addr() { return nullptr; }
+#endif
 
 public:
 	virtual Error initialize() override;

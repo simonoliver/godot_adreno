@@ -903,7 +903,10 @@ Error RenderingContextDriverVulkan::initialize() {
 	Error err;
 
 #ifdef USE_VOLK
-	if (volkInitialize() != VK_SUCCESS) {
+	PFN_vkGetInstanceProcAddr custom_instance_proc_addr = _get_custom_instance_proc_addr();
+	if (custom_instance_proc_addr != nullptr) {
+		volkInitializeCustom(custom_instance_proc_addr);
+	} else if (volkInitialize() != VK_SUCCESS) {
 		return FAILED;
 	}
 #endif

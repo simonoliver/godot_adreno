@@ -32,6 +32,8 @@
 
 #ifdef VULKAN_ENABLED
 
+#include "vulkan_custom_driver_android.h"
+
 #include "core/variant/variant.h"
 
 #include <drivers/vulkan/godot_vulkan.h>
@@ -62,6 +64,10 @@ bool RenderingContextDriverVulkanAndroid::_use_validation_layers() const {
 
 	// On Android, we use validation layers automatically if they were explicitly linked with the app.
 	return (err == OK) && !layer_names.is_empty();
+}
+
+PFN_vkGetInstanceProcAddr RenderingContextDriverVulkanAndroid::_get_custom_instance_proc_addr() {
+	return VulkanCustomDriverAndroid::load();
 }
 
 #endif // VULKAN_ENABLED

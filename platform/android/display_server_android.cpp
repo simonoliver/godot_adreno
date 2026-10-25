@@ -47,6 +47,7 @@
 
 #if defined(VULKAN_ENABLED)
 #include "rendering_context_driver_vulkan_android.h"
+#include "vulkan_custom_driver_android.h"
 #endif
 #endif
 
@@ -825,6 +826,9 @@ DisplayServerAndroid::DisplayServerAndroid(const String &p_rendering_driver, Dis
 		}
 
 		rendering_device->screen_create(DisplayServerEnums::MAIN_WINDOW_ID);
+#if defined(VULKAN_ENABLED)
+		VulkanCustomDriverAndroid::mark_started();
+#endif
 
 		RendererCompositorRD::make_current();
 	}

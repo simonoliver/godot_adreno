@@ -43,6 +43,7 @@ private:
 protected:
 	SurfaceID surface_create(const void *p_platform_data) override final;
 	bool _use_validation_layers() const override final;
+	PFN_vkGetInstanceProcAddr _get_custom_instance_proc_addr() override final;
 
 public:
 	struct WindowPlatformData {
